@@ -105,6 +105,65 @@ io.on("connection", (socket) => {
     socket.emit("message", { ...msg, isYou: true });
   });
 
+  socket.on("typing", ({ sessionId, username: who, isTyping }) => {
+    if (!sessionId) return;
+    socket.to(sessionId).emit("typing", { username: who, isTyping });
+  });
+
+  socket.on("edit-message", ({ sessionId, messageId, newContent }) => {
+    if (!sessionId || !sessions.has(sessionId)) return;
+    io.to(sessionId).emit("message-edited", { messageId, newContent });
+  });
+
+  socket.on("clear-request", ({ sessionId, type, requester }) => {
+    if (!sessionId || !sessions.has(sessionId)) return;
+    if (type === "local") {
+      socket.emit("chat-cleared", { type: "local" });
+    } else {
+      socket.to(sessionId).emit("clear-permission-request", { requester });
+    }
+  });
+
+  socket.on("clear-response", ({ sessionId, accepted }) => {
+    if (!sessionId || !sessions.has(sessionId)) return;
+    if (accepted) {
+      io.to(sessionId).emit("chat-cleared", { type: "both" });
+    }
+  });
+
+  socket.on("messages-read", ({ sessionId, messageIds, reader }) => {
+    if (!sessionId || !sessions.has(sessionId)) return;
+    socket.to(sessionId).emit("messages-seen", { messageIds, reader });
+  });
+
+  socket.on("file-shared", ({ sessionId, file }) => {
+    if (!sessionId || !file) return;
+    io.to(sessionId).emit("file-shared", file);
+  });
+
+  socket.on(
+    "invite-user",
+    ({ targetId, sessionId, password, inviterName, message }) => {
+      const targetSocket = io.sockets.sockets.get(targetId);
+      if (targetSocket) {
+        io.to(targetId).emit("invite-received", {
+          sessionId,
+          password,
+          inviterName,
+          message,
+          inviterId: socket.id,
+        });
+      }
+    },
+  );
+
+  socket.on("invite-rejected", ({ targetId, message, declinerName }) => {
+    const targetSocket = io.sockets.sockets.get(targetId);
+    if (targetSocket) {
+      io.to(targetId).emit("rejection-received", { message, declinerName });
+    }
+  });
+
   socket.on("disconnect", () => {
     if (!currentSessionId || !sessions.has(currentSessionId)) return;
 
