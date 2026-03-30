@@ -1,0 +1,152 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ─────────────────────────────────────────
+  # Frontend — lint, build, unit/integration
+  # ─────────────────────────────────────────
+  frontend:
+    name: Frontend CI
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Type check
+        run: npm run typecheck --if-present
+
+      - name: Build
+        run: npm run build
+
+      - name: Run unit & integration tests
+        run: npm test -- --run
+        # --run is Vitest's CI flag (no watch mode).
+        # If you're on Jest, remove -- --run; Jest auto-detects CI mode
+        # via the CI env variable that GitHub Actions sets.
+
+  # ─────────────────────────────────────────
+  # Backend — build & unit/integration tests
+  # ─────────────────────────────────────────
+  backend:
+    name: Backend CI
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Run unit & integration tests
+        run: npm test
+
+  # ─────────────────────────────────────────
+  # Selenium E2E — headless Chrome via xvfb
+  # ─────────────────────────────────────────
+  e2e:
+    name: Selenium E2E
+    runs-on: ubuntu-latest
+    # E2E only runs after both frontend and backend pass
+    needs: [frontend, backend]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+
+      - name: Install ChromeDriver
+        uses: nanasess/setup-chromedriver@v2
+
+      - name: Start Xvfb (virtual display)
+        run: |
+          sudo apt-get install -y xvfb
+          Xvfb :99 -screen 0 1920x1080x24 &
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Start backend server
+        working-directory: backend
+        run: npm start &
+        env:
+          NODE_ENV: test
+          PORT: 3000
+
+      - name: Wait for backend to be ready
+        run: npx wait-on http://localhost:3000 --timeout 30000
+
+      - name: Serve frontend (static)
+        working-directory: frontend
+        run: npx serve dist -l 5173 &
+
+      - name: Wait for frontend to be ready
+        run: npx wait-on http://localhost:5173 --timeout 30000
+
+      - name: Run Selenium E2E tests
+        run: npm run test:e2e
+        env:
+          DISPLAY: :99
+          BASE_URL: http://localhost:5173
+          BACKEND_URL: http://localhost:3000
