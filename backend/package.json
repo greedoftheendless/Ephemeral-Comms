@@ -1,7 +1,6 @@
 {
   "name": "ephemeral-comms-backend",
   "version": "1.0.0",
-  "type": "module",
   "description": "Socket.IO backend for Ephemeral Comms",
   "main": "server.js",
   "scripts": {
@@ -21,7 +20,7 @@
     "@vitest/coverage-v8": "^4.1.2",
     "@vitest/ui": "^4.1.2",
     "eslint": "^10.1.0",
-    "supertest": "^6.3.3",
+    "supertest": "^6.3.4",
     "vitest": "^4.1.2"
   }
 }
