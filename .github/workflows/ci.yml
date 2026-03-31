@@ -2,9 +2,9 @@ name: CI - Test & Build
 
 on:
   push:
-    branches: [main, CI/CD]
+    branches: [master, CI/CD]
   pull_request:
-    branches: [main]
+    branches: [master]
 
 jobs:
   test-backend:
@@ -27,7 +27,7 @@ jobs:
 
       - name: Run tests
         working-directory: backend
-        run: npm test -- --passWithNoTests
+        run: npm test
 
       - name: Validate server
         working-directory: backend
