@@ -1,4 +1,3 @@
-#CI/CD Test
 name: CI - Test & Build
 
 on:
