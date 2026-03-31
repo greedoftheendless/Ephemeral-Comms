@@ -1,3 +1,4 @@
+#CI/CD Test
 name: CI - Test & Build
 
 on:
@@ -27,7 +28,7 @@ jobs:
 
       - name: Run tests
         working-directory: backend
-        run: npm test -- --passWithNoTests
+        run: npm test
 
       - name: Validate server
         working-directory: backend
